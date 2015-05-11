@@ -1,0 +1,6 @@
+Demonstrates memory issues with the Tomcat Gradle Plugin.
+
+[source,bash]
+----
+./gradlew permGen
+----

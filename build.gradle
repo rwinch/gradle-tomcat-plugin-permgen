@@ -1,0 +1,90 @@
+plugins {
+	id 'com.bmuschko.tomcat' version '2.2.1'
+}
+
+apply plugin: 'war'
+apply plugin: 'eclipse-wtp'
+apply plugin: 'idea'
+apply plugin: 'com.bmuschko.tomcat'
+apply plugin: 'groovy'
+
+repositories {
+	mavenCentral()
+}
+
+dependencies {
+	providedCompile 'javax.servlet:javax.servlet-api:3.0.1'
+
+	testCompile 'org.spockframework:spock-core:1.0-groovy-2.4'
+}
+
+dependencies {
+	def tomcatVersion = '7.0.61'
+	tomcat "org.apache.tomcat.embed:tomcat-embed-core:${tomcatVersion}",
+		"org.apache.tomcat.embed:tomcat-embed-logging-juli:${tomcatVersion}",
+		"org.apache.tomcat.embed:tomcat-embed-jasper:${tomcatVersion}"
+}
+
+tomcat {
+	contextPath = '/'
+
+}
+
+task permGen << {}
+
+100.times { counter ->
+	task "integrationTomcatRun$counter"(type: com.bmuschko.gradle.tomcat.tasks.TomcatRun) {
+		daemon = true
+		doFirst {
+			def ports = reservePorts(3)
+			httpPort = ports[0]
+			ajpPort = ports[1]
+			stopPort = ports[2]
+		}
+	}
+
+	task "integrationTomcatStop$counter"(type: com.bmuschko.gradle.tomcat.tasks.TomcatStop) {
+		doFirst {
+			stopPort = project.tasks."integrationTomcatRun$counter".stopPort
+		}
+	}
+
+	task "permGen$counter"(type: Test) {
+		dependsOn "integrationTomcatRun$counter"
+
+		testClassesDir = sourceSets.test.output.classesDir
+		classpath = sourceSets.test.runtimeClasspath
+		maxParallelForks = 1
+		reports {
+			html.destination = project.file("$project.buildDir/reports/permGen$counter-tests/")
+			junitXml.destination = project.file("$project.buildDir/permGen$counter-test-results/")
+		}
+
+
+		doFirst {
+			def host = 'localhost:' + project.tasks."integrationTomcatRun$counter".httpPort
+			systemProperties['tomcat.host'] = 'http://'+host+'/'
+		}
+		finalizedBy "integrationTomcatStop$counter"
+	}
+
+	if(counter > 0) {
+		def previous = counter - 1
+		tasks."integrationTomcatRun$previous".dependsOn "integrationTomcatStop$counter"
+	}
+
+	permGen.dependsOn "permGen$counter"
+}
+
+
+
+
+def reservePorts(int count) {
+	def sockets = []
+	for(int i in 1..count) {
+		sockets << new ServerSocket(0)
+	}
+	def result = sockets*.localPort
+	sockets*.close()
+	result
+}
