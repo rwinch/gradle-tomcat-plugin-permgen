@@ -1,6 +1,16 @@
-plugins {
-	id 'com.bmuschko.tomcat' version '2.2.1'
+buildscript {
+	repositories {
+		jcenter()
+		flatDir name: 'libs', dirs: "/Users/rwinch/code/gradle-tomcat-plugin/build/libs/"
+	}
+	dependencies {
+		classpath "gradle-tomcat-plugin-2.2.1-gh113"
+	}
 }
+
+//plugins {
+//	id 'com.bmuschko.tomcat' version '2.2.1'
+//}
 
 apply plugin: 'war'
 apply plugin: 'eclipse-wtp'
